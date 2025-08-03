@@ -18,13 +18,14 @@ import QuickActionButton from '../components/QuickActionButton';
 // Import context
 import { useApp } from '../context/AppContext';
 import { useFocusEffect } from '@react-navigation/native';
+import { PRESET_WORKOUTS } from '../constants/exerciseCategories'; // ✅ Add this import
 
 const HomeScreen = ({ navigation }) => {
-  const { todayStats, profile, customWorkouts,  isLoading, refreshData } = useApp();
+  const { todayStats, profile, customWorkouts, isLoading, refreshData } = useApp();
 
-const hasLoadedRef = useRef(false);
+  const hasLoadedRef = useRef(false);
 
-useFocusEffect(
+  useFocusEffect(
     useCallback(() => {
       if (hasLoadedRef.current) {
         refreshData();
@@ -34,40 +35,48 @@ useFocusEffect(
     }, [refreshData])
   );
 
-  const quickWorkouts = [
-    { 
-      id: 1, 
-      name: 'Quick Cardio', 
-      duration: '15 min', 
-      difficulty: 'Beginner',
-      previewExercise: 'Jumping Jacks',
-      estimatedCalories: 120
-    },
-    { 
-      id: 2, 
-      name: 'Strength Training', 
-      duration: '30 min', 
-      difficulty: 'Intermediate',
-      previewExercise: 'Push-ups',
-      estimatedCalories: 200
-    },
-    { 
-      id: 3, 
-      name: 'Full Body Workout', 
-      duration: '45 min', 
-      difficulty: 'Advanced',
-      previewExercise: 'Burpees',
-      estimatedCalories: 350
-    },
-    { 
-      id: 4, 
-      name: 'Yoga & Stretch', 
-      duration: '20 min', 
-      difficulty: 'Beginner',
-      previewExercise: 'Planks',
-      estimatedCalories: 80
-    },
-  ];
+  // ✅ DYNAMIC RECOMMENDED WORKOUTS - Replace static quickWorkouts
+  const getRecommendedWorkouts = () => {
+    // Get all preset workouts
+    const allPresetWorkouts = [
+      ...PRESET_WORKOUTS.beginner,
+      ...PRESET_WORKOUTS.intermediate,
+      ...PRESET_WORKOUTS.advanced
+    ];
+
+    // Create recommended list: prioritize custom workouts, then fill with presets
+    let recommended = [];
+
+    // Add custom workouts first (up to 2 to leave room for variety)
+    if (customWorkouts.length > 0) {
+      recommended = [...customWorkouts.slice(0, 2)];
+    }
+
+    // Fill remaining spots with preset workouts (up to 4 total)
+    const remainingSlots = 4 - recommended.length;
+    if (remainingSlots > 0) {
+      // Add preset workouts, avoiding duplicates by category
+      const presetsToAdd = allPresetWorkouts
+        .filter(preset => !recommended.some(rec => rec.name === preset.name))
+        .slice(0, remainingSlots);
+      
+      recommended = [...recommended, ...presetsToAdd];
+    }
+
+    // If no custom workouts, show a good mix of preset workouts
+    if (recommended.length === 0) {
+      recommended = [
+        ...PRESET_WORKOUTS.beginner.slice(0, 1),     // 1 beginner
+        ...PRESET_WORKOUTS.intermediate.slice(0, 2), // 2 intermediate  
+        ...PRESET_WORKOUTS.advanced.slice(0, 1)      // 1 advanced
+      ];
+    }
+
+    return recommended;
+  };
+
+  // ✅ Get dynamic recommended workouts
+  const recommendedWorkouts = getRecommendedWorkouts();
 
   const handleStartWorkout = (workout) => {
     navigation.navigate('Workout', { workout });
@@ -140,28 +149,29 @@ useFocusEffect(
           <Text style={styles.sectionTitle}>Quick Actions</Text>
           <View style={styles.quickActionsRow}>
             <QuickActionButton
-                title="Start Workout"
-                icon="🏃‍♂️"
-                onPress={() => navigation.navigate('Workout')}
+              title="Start Workout"
+              icon="🏃‍♂️"
+              onPress={() => navigation.navigate('Workout')}
             />
             <QuickActionButton
-                title="My Workouts"
-                icon="📋"
-                onPress={() => navigation.navigate('MyWorkouts')}
+              title="My Workouts"
+              icon="📋"
+              onPress={() => navigation.navigate('MyWorkouts')}
             />
             <QuickActionButton
-                title="Create Workout"
-                icon="✨"
-                onPress={() => navigation.navigate('WorkoutBuilder')}
+              title="Create Workout"
+              icon="✨"
+              onPress={() => navigation.navigate('WorkoutBuilder')}
             />
             <QuickActionButton
-                title="View Profile"
-                icon="👤"
-                onPress={handleProfile}
+              title="View Profile"
+              icon="👤"
+              onPress={handleProfile}
             />
-            </View>
+          </View>
         </View>
 
+        {/* My Custom Workouts Section */}
         {customWorkouts.length > 0 && (
           <View style={styles.workoutsSection}>
             <View style={styles.sectionHeader}>
@@ -193,16 +203,31 @@ useFocusEffect(
           </View>
         )}
 
-        {/* Recommended Workouts */}
+        {/* ✅ UPDATED: Dynamic Recommended Workouts */}
         <View style={styles.workoutsSection}>
-          <Text style={styles.sectionTitle}>Recommended Workouts</Text>
-          {quickWorkouts.map((workout) => (
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}> Recommended Workouts
+            </Text>
+          </View>
+          
+          {/* ✅ Now using dynamic recommendedWorkouts instead of static quickWorkouts */}
+          {recommendedWorkouts.map((workout) => (
             <WorkoutCard
               key={workout.id}
               workout={workout}
               onPress={() => handleStartWorkout(workout)}
             />
           ))}
+          
+          {/* Show link to view all workouts */}
+          <TouchableOpacity 
+            style={styles.viewMoreButton}
+            onPress={() => navigation.navigate('MyWorkouts')}
+          >
+            <Text style={styles.viewMoreText}>
+              View All Workouts →
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -274,6 +299,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#4CAF50',
     fontWeight: 'bold',
+  },
+  // ✅ NEW STYLE for recommendation note
+  recommendationNote: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
   },
   viewMoreButton: {
     padding: 15,
