@@ -14,10 +14,11 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#4CAF50',
     paddingVertical: 15,
-    paddingHorizontal: 20,
+    paddingHorizontal: 15, 
     borderRadius: 20,
     alignItems: 'center',
-    minWidth: 120,
+    width: '48%',
+    marginBottom: 10
   },
   icon: {
     fontSize: 24,

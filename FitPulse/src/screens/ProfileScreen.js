@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,24 +9,21 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useApp } from '../context/AppContext';
 
 const ProfileScreen = ({ navigation }) => {
-  const [profile, setProfile] = useState({
-    name: 'John Doe',
-    age: 28,
-    weight: 70,
-    height: 175,
-    fitnessGoal: 'Muscle Building',
-    experience: 'Intermediate',
-  });
-
+  const { profile, updateProfile, achievements } = useApp();
   const [isEditing, setIsEditing] = useState(false);
-  const [editedProfile, setEditedProfile] = useState(profile);
+  const [editedProfile, setEditedProfile] = useState(profile || {});
 
-  const fitnessGoals = ['Weight Loss', 'Muscle Building', 'Endurance', 'General Fitness'];
-  const experienceLevels = ['Beginner', 'Intermediate', 'Advanced'];
+  useEffect(() => {
+    if (profile) {
+      setEditedProfile(profile);
+    }
+  }, [profile]);
 
   const calculateBMI = () => {
+    if (!profile?.height || !profile?.weight) return 0;
     const heightInMeters = profile.height / 100;
     const bmi = profile.weight / (heightInMeters * heightInMeters);
     return bmi.toFixed(1);
@@ -39,10 +36,14 @@ const ProfileScreen = ({ navigation }) => {
     return 'Obese';
   };
 
-  const saveProfile = () => {
-    setProfile(editedProfile);
-    setIsEditing(false);
-    Alert.alert('Success', 'Profile updated successfully!');
+  const saveProfile = async () => {
+    const success = await updateProfile(editedProfile);
+    if (success) {
+      setIsEditing(false);
+      Alert.alert('Success', 'Profile updated successfully!');
+    } else {
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    }
   };
 
   const cancelEdit = () => {
@@ -50,12 +51,42 @@ const ProfileScreen = ({ navigation }) => {
     setIsEditing(false);
   };
 
-  const achievements = [
-    { title: 'First Workout', description: 'Complete your first workout', achieved: true },
-    { title: '7 Day Streak', description: 'Workout for 7 consecutive days', achieved: true },
-    { title: 'Burn 1000 Calories', description: 'Burn 1000 calories in workouts', achieved: false },
-    { title: '30 Day Challenge', description: 'Complete 30 days of workouts', achieved: false },
+  const achievementData = [
+    { 
+      id: 'first_workout', 
+      title: 'First Workout', 
+      description: 'Complete your first workout',
+      achieved: achievements.includes('first_workout')
+    },
+    { 
+      id: '10_workouts', 
+      title: '10 Workouts', 
+      description: 'Complete 10 workouts',
+      achieved: achievements.includes('10_workouts')
+    },
+    { 
+      id: '1000_calories_day', 
+      title: 'Calorie Burner', 
+      description: 'Burn 1000 calories in a single day',
+      achieved: achievements.includes('1000_calories_day')
+    },
+    { 
+      id: 'consistency_week', 
+      title: '7 Day Streak', 
+      description: 'Workout for 7 consecutive days',
+      achieved: achievements.includes('consistency_week')
+    },
   ];
+
+  if (!profile) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text>Loading profile...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const bmi = calculateBMI();
   const bmiCategory = getBMICategory(parseFloat(bmi));
@@ -67,7 +98,7 @@ const ProfileScreen = ({ navigation }) => {
         <View style={styles.header}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>
-              {profile.name.split(' ').map(n => n[0]).join('')}
+              {profile.name?.split(' ').map(n => n[0]).join('') || 'U'}
             </Text>
           </View>
           <Text style={styles.name}>{profile.name}</Text>
@@ -127,7 +158,7 @@ const ProfileScreen = ({ navigation }) => {
                 <Text style={styles.inputLabel}>Age</Text>
                 <TextInput
                   style={styles.input}
-                  value={editedProfile.age.toString()}
+                  value={editedProfile.age?.toString()}
                   onChangeText={(text) => setEditedProfile({...editedProfile, age: parseInt(text) || 0})}
                   keyboardType="numeric"
                 />
@@ -137,7 +168,7 @@ const ProfileScreen = ({ navigation }) => {
                 <Text style={styles.inputLabel}>Weight (kg)</Text>
                 <TextInput
                   style={styles.input}
-                  value={editedProfile.weight.toString()}
+                  value={editedProfile.weight?.toString()}
                   onChangeText={(text) => setEditedProfile({...editedProfile, weight: parseInt(text) || 0})}
                   keyboardType="numeric"
                 />
@@ -147,15 +178,20 @@ const ProfileScreen = ({ navigation }) => {
                 <Text style={styles.inputLabel}>Height (cm)</Text>
                 <TextInput
                   style={styles.input}
-                  value={editedProfile.height.toString()}
+                  value={editedProfile.height?.toString()}
                   onChangeText={(text) => setEditedProfile({...editedProfile, height: parseInt(text) || 0})}
                   keyboardType="numeric"
                 />
               </View>
 
-              <TouchableOpacity style={styles.saveButton} onPress={saveProfile}>
-                <Text style={styles.saveButtonText}>Save Changes</Text>
-              </TouchableOpacity>
+              <View style={styles.buttonRow}>
+                <TouchableOpacity style={styles.cancelButton} onPress={cancelEdit}>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.saveButton} onPress={saveProfile}>
+                  <Text style={styles.saveButtonText}>Save Changes</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           ) : (
             <View style={styles.detailsGrid}>
@@ -167,16 +203,22 @@ const ProfileScreen = ({ navigation }) => {
                 <Text style={styles.detailLabel}>Experience Level</Text>
                 <Text style={styles.detailValue}>{profile.experience}</Text>
               </View>
+              <View style={styles.detailItem}>
+                <Text style={styles.detailLabel}>Member Since</Text>
+                <Text style={styles.detailValue}>
+                  {profile.joinDate ? new Date(profile.joinDate).toLocaleDateString() : 'N/A'}
+                </Text>
+              </View>
             </View>
           )}
         </View>
 
         {/* Achievements */}
         <View style={styles.achievementsSection}>
-          <Text style={styles.sectionTitle}>Achievements</Text>
-          {achievements.map((achievement, index) => (
+          <Text style={styles.sectionTitle}>Achievements ({achievements.length}/{achievementData.length})</Text>
+          {achievementData.map((achievement) => (
             <View
-              key={index}
+              key={achievement.id}
               style={[
                 styles.achievementItem,
                 achievement.achieved && styles.achievementAchieved
@@ -233,6 +275,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     padding: 20,
@@ -363,12 +410,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
+  buttonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#f44336',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
   saveButton: {
+    flex: 1,
     backgroundColor: '#4CAF50',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 10,
   },
   saveButtonText: {
     color: '#fff',

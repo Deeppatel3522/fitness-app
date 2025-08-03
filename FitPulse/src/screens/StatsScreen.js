@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,22 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useApp } from '../context/AppContext';
+import { getDailyStats } from '../services/dataService';
 
 const StatsScreen = ({ navigation }) => {
+  const { workoutHistory, todayStats } = useApp();
   const [selectedPeriod, setSelectedPeriod] = useState('week');
+  const [statsData, setStatsData] = useState({});
+
+  useEffect(() => {
+    loadStatsData();
+  }, [workoutHistory, selectedPeriod]);
+
+  const loadStatsData = async () => {
+    const dailyStats = await getDailyStats();
+    setStatsData(dailyStats);
+  };
 
   const periods = [
     { key: 'week', label: 'This Week' },
@@ -17,43 +30,84 @@ const StatsScreen = ({ navigation }) => {
     { key: 'year', label: 'This Year' },
   ];
 
-  const weeklyStats = {
-    workouts: 5,
-    totalTime: 240, // minutes
-    calories: 1200,
-    avgDuration: 48,
-    bestDay: 'Tuesday',
-    streak: 3,
-  };
+  const calculatePeriodStats = () => {
+    const now = new Date();
+    let startDate;
 
-  const monthlyStats = {
-    workouts: 18,
-    totalTime: 960,
-    calories: 4800,
-    avgDuration: 53,
-    bestDay: 'Monday',
-    streak: 7,
-  };
-
-  const yearlyStats = {
-    workouts: 156,
-    totalTime: 7800,
-    calories: 39000,
-    avgDuration: 50,
-    bestDay: 'Wednesday',
-    streak: 14,
-  };
-
-  const getCurrentStats = () => {
     switch(selectedPeriod) {
-      case 'week': return weeklyStats;
-      case 'month': return monthlyStats;
-      case 'year': return yearlyStats;
-      default: return weeklyStats;
+      case 'week':
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
+        break;
+      case 'month':
+        startDate = new Date(now);
+        startDate.setMonth(now.getMonth() - 1);
+        break;
+      case 'year':
+        startDate = new Date(now);
+        startDate.setFullYear(now.getFullYear() - 1);
+        break;
+      default:
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - 7);
     }
+
+    const filteredWorkouts = workoutHistory.filter(workout => 
+      new Date(workout.date) >= startDate
+    );
+
+    const totalWorkouts = filteredWorkouts.length;
+    const totalTime = filteredWorkouts.reduce((sum, w) => sum + (w.duration || 0), 0);
+    const totalCalories = filteredWorkouts.reduce((sum, w) => sum + (w.caloriesBurned || 0), 0);
+    const avgDuration = totalWorkouts > 0 ? Math.round(totalTime / totalWorkouts) : 0;
+
+    // Find best day
+    const dayCount = {};
+    filteredWorkouts.forEach(workout => {
+      const day = new Date(workout.date).toLocaleDateString('en-US', { weekday: 'long' });
+      dayCount[day] = (dayCount[day] || 0) + 1;
+    });
+    const bestDay = Object.keys(dayCount).reduce((a, b) => 
+      dayCount[a] > dayCount[b] ? a : b, 'Monday'
+    ) || 'Monday';
+
+    return {
+      workouts: totalWorkouts,
+      totalTime,
+      calories: totalCalories,
+      avgDuration,
+      bestDay,
+      streak: calculateStreak()
+    };
   };
 
-  const stats = getCurrentStats();
+  const calculateStreak = () => {
+    if (workoutHistory.length === 0) return 0;
+    
+    let streak = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    for (let i = 0; i < 30; i++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(today.getDate() - i);
+      const dateString = checkDate.toDateString();
+      
+      const hasWorkout = workoutHistory.some(workout => 
+        new Date(workout.date).toDateString() === dateString
+      );
+      
+      if (hasWorkout) {
+        streak++;
+      } else if (i > 0) { // Allow for today to not have a workout yet
+        break;
+      }
+    }
+    
+    return streak;
+  };
+
+  const stats = calculatePeriodStats();
 
   const formatTime = (minutes) => {
     const hours = Math.floor(minutes / 60);
@@ -61,19 +115,13 @@ const StatsScreen = ({ navigation }) => {
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
   };
 
-  const workoutHistory = [
-    { date: '2025-08-02', name: 'Full Body Workout', duration: 45, calories: 320 },
-    { date: '2025-08-01', name: 'Cardio Session', duration: 30, calories: 250 },
-    { date: '2025-07-31', name: 'Strength Training', duration: 60, calories: 400 },
-    { date: '2025-07-30', name: 'Yoga Flow', duration: 25, calories: 150 },
-    { date: '2025-07-29', name: 'HIIT Workout', duration: 35, calories: 280 },
-  ];
+  const recentWorkouts = workoutHistory.slice(0, 5);
 
   const goals = [
-    { title: 'Weekly Workouts', current: 5, target: 7, unit: 'workouts' },
-    { title: 'Calories Burned', current: 1200, target: 1500, unit: 'cal' },
-    { title: 'Total Time', current: 240, target: 300, unit: 'min' },
-    { title: 'Workout Streak', current: 3, target: 7, unit: 'days' },
+    { title: 'Weekly Workouts', current: stats.workouts, target: 5, unit: 'workouts' },
+    { title: 'Calories Burned', current: stats.calories, target: 2000, unit: 'cal' },
+    { title: 'Total Time', current: stats.totalTime, target: 150, unit: 'min' },
+    { title: 'Workout Streak', current: stats.streak, target: 7, unit: 'days' },
   ];
 
   const getProgressPercentage = (current, target) => {
@@ -127,7 +175,7 @@ const StatsScreen = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Additional Stats */}
+        {/* Performance Cards */}
         <View style={styles.additionalStatsSection}>
           <Text style={styles.sectionTitle}>Performance</Text>
           <View style={styles.performanceCards}>
@@ -173,7 +221,7 @@ const StatsScreen = ({ navigation }) => {
         {/* Recent Workouts */}
         <View style={styles.historySection}>
           <Text style={styles.sectionTitle}>Recent Workouts</Text>
-          {workoutHistory.map((workout, index) => (
+          {recentWorkouts.length > 0 ? recentWorkouts.map((workout, index) => (
             <View key={index} style={styles.historyItem}>
               <View style={styles.historyDate}>
                 <Text style={styles.historyDateText}>
@@ -186,34 +234,40 @@ const StatsScreen = ({ navigation }) => {
               <View style={styles.historyContent}>
                 <Text style={styles.historyName}>{workout.name}</Text>
                 <Text style={styles.historyStats}>
-                  {workout.duration}min • {workout.calories} cal
+                  {workout.duration}min • {workout.caloriesBurned} cal
                 </Text>
               </View>
               <View style={styles.historyIcon}>
                 <Text style={styles.historyIconText}>💪</Text>
               </View>
             </View>
-          ))}
+          )) : (
+            <View style={styles.noDataContainer}>
+              <Text style={styles.noDataText}>No workouts yet. Start your fitness journey!</Text>
+            </View>
+          )}
         </View>
 
         {/* Insights */}
         <View style={styles.insightsSection}>
           <Text style={styles.sectionTitle}>Insights</Text>
           <View style={styles.insightCard}>
-            <Text style={styles.insightTitle}>🎯 You're doing great!</Text>
+            <Text style={styles.insightTitle}>🎯 Progress Summary</Text>
             <Text style={styles.insightText}>
               You've completed {stats.workouts} workouts this {selectedPeriod}, 
-              burning {stats.calories.toLocaleString()} calories. 
-              Keep up the excellent work!
+              burning {stats.calories.toLocaleString()} calories in {formatTime(stats.totalTime)}. 
+              {stats.workouts > 0 ? 'Keep up the excellent work!' : 'Start your first workout today!'}
             </Text>
           </View>
-          <View style={styles.insightCard}>
-            <Text style={styles.insightTitle}>📈 Consistency Tip</Text>
-            <Text style={styles.insightText}>
-              Your best workout day is {stats.bestDay}. Try scheduling more 
-              workouts on this day to maximize your results.
-            </Text>
-          </View>
+          {stats.workouts > 0 && (
+            <View style={styles.insightCard}>
+              <Text style={styles.insightTitle}>📈 Consistency Tip</Text>
+              <Text style={styles.insightText}>
+                Your best workout day is {stats.bestDay}. Try scheduling more 
+                workouts on this day to maximize your results and build consistency.
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -394,6 +448,15 @@ const styles = StyleSheet.create({
   },
   historyIconText: {
     fontSize: 20,
+  },
+  noDataContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  noDataText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
   insightsSection: {
     padding: 20,

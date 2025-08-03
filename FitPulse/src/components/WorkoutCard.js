@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { getExerciseImage } from '../constants/exerciseImages';
+import { Ionicons } from '@expo/vector-icons';
 
 const WorkoutCard = ({ workout, onPress }) => {
   const getDifficultyColor = (difficulty) => {
@@ -37,7 +38,7 @@ const WorkoutCard = ({ workout, onPress }) => {
         </View>
       </View>
       <View style={styles.arrow}>
-        <Text style={styles.arrowText}>▶</Text>
+        <Ionicons name='play' size={16} color={"#4CAF50"}/>
       </View>
     </TouchableOpacity>
   );
@@ -88,6 +89,7 @@ const styles = StyleSheet.create({
   },
   arrow: {
     marginLeft: 10,
+    paddingRight: 25
   },
   arrowText: {
     fontSize: 16,
