@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { getExerciseImage } from '../constants/exerciseImages';
 import { Ionicons } from '@expo/vector-icons';
+import ImageLoad from 'react-native-image-placeholder';
 
 const WorkoutCard = ({ workout, onPress }) => {
   const getDifficultyColor = (difficulty) => {

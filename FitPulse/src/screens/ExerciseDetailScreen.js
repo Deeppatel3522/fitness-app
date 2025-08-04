@@ -5,11 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getExerciseImage } from '../constants/exerciseImages';
+import ImageLoader from '../components/ImageLoader'; // ✅ Import ImageLoader
 
 const { width } = Dimensions.get('window');
 
@@ -102,13 +102,18 @@ const ExerciseDetailScreen = ({ route, navigation }) => {
           </View>
         </View>
 
-        {/* Exercise Image */}
+        {/* ✅ Exercise Image with ImageLoader */}
         <View style={styles.imageSection}>
-          <Image 
+          <ImageLoader
             source={getExerciseImage(exercise.name)}
+            placeholderSource={require('../../assets/images/exercise-placeholder.png')} // ✅ Add placeholder
             style={styles.exerciseImage}
             resizeMode="contain"
+            loaderColor="#4CAF50"
+            loaderSize="large"
           />
+          
+          {/* Optional: Fullscreen Button */}
           <TouchableOpacity 
             style={styles.fullscreenButton}
             onPress={() => {
@@ -203,6 +208,7 @@ const ExerciseDetailScreen = ({ route, navigation }) => {
   );
 };
 
+// ✅ Updated styles (same as before, no changes needed)
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -249,6 +255,7 @@ const styles = StyleSheet.create({
     height: 250,
     borderRadius: 10,
     marginBottom: 15,
+    backgroundColor: '#f8f8f8', // ✅ Background color while loading
   },
   fullscreenButton: {
     backgroundColor: '#f0f0f0',
