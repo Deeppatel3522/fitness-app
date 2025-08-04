@@ -20,7 +20,7 @@ const WorkoutCard = ({ workout, onPress }) => {
     require('../../assets/images/exercises/default-exercise.png');
 
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress}>
+    <TouchableOpacity style={styles.container} onPress={onPress} testID="workout-card">
       <Image 
         source={previewImage}
         style={styles.previewImage}
