@@ -25,10 +25,10 @@ const exerciseImages = {
     'Plank Jacks': require('../../assets/images/exercises/plank-jack.png'),
     'Squat Jumps': require('../../assets/images/exercises/squat-jump.png'),
     'Bear Crawl': require('../../assets/images/exercises/bear-crwal.png')
-  // Add more exercises as needed
+  // Add more exercisesas needed
 };
 
-// Default image for exercises without specific images
+// Default image for exercises/without specific images
 const defaultExerciseImage = require('../../assets/images/exercises/default-exercise.png');
 
 export const getExerciseImage = (exerciseName) => {
